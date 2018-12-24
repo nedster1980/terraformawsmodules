@@ -113,4 +113,29 @@ resource "aws_elb" "example" {
   }
 }
 
+//Create autoscaling schedule
+//Demonstrate using output values from module
+resource "aws_autoscaling_schedule" "scale_out_during_business_hours" {
+  count = "${var.enable_autoscaling}"
+
+  autoscaling_group_name = "${aws_autoscaling_group.example.name}"
+  scheduled_action_name = "scale-out-during-business-hours"
+  min_size = 2
+  max_size = 10
+  desired_capacity = 10
+  recurrence = "0 9 * * *"
+}
+
+//Demonstrate using output values from module
+resource "aws_autoscaling_schedule" "scale_in_at_night" {
+  count = "${var.enable_autoscaling}"
+
+  autoscaling_group_name = "${aws_autoscaling_group.example.name}"
+  scheduled_action_name = "scale-in-at-night"
+  min_size = 2
+  max_size = 10
+  desired_capacity = 2
+  recurrence = "0 17 * * *"
+}
+
 
