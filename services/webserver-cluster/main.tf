@@ -54,7 +54,7 @@ data "template_file" "user_data" {
 //Else if enable_user_data is true the user-data-new.sh script will be used
 data "template_file" "user_data_new" {
   count = "${var.enable_new_user_data}"
-  template = "${file("${path.module/user-data-new.sh}")}"
+  template = "${file("${path.module}/user-data-new.sh")}"
   vars {
     server_port = "${var.server_port}"
   }
