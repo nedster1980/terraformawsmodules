@@ -33,6 +33,3 @@ variable "enable_autoscaling" {
   description = "If set to true, enable auto scaling"
 }
 
-variable "enable_new_user_data" {
-  description = "if set to true, use the new User Data script"
-}

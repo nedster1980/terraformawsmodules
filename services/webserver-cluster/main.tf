@@ -30,7 +30,7 @@ resource "aws_launch_configuration" "example" {
   image_id = "ami-0f60b09eab2ef8366"
   instance_type = "${var.instance_type}"
   security_groups = ["${aws_security_group.instance.id}"]
-  user_data = "${element(concat(data.template_file.user_data.*.rendered,data.template_file.user_data_new.*.rendered),0)}"
+  user_data = "${data.template_file.user_data.rendered}"
 
   lifecycle {
     create_before_destroy = true
@@ -41,28 +41,20 @@ resource "aws_launch_configuration" "example" {
 //Now using count and interpolation to hack an if/else statement
 //if enable_new_user is false the user-data.sh script will be used
 data "template_file" "user_data" {
-  count = "${1 - var.enable_new_user_data}"
   template = "${file("${path.module}/user-data.sh")}"
 
   vars {
     server_port = "${var.server_port}"
     db_address = "${data.terraform_remote_state.db.address}"
     db_port = "${data.terraform_remote_state.db.port}"
-  }
-}
-
-//Else if enable_user_data is true the user-data-new.sh script will be used
-data "template_file" "user_data_new" {
-  count = "${var.enable_new_user_data}"
-  template = "${file("${path.module}/user-data-new.sh")}"
-  vars {
-    server_port = "${var.server_port}"
+    server_text = "${var}"
   }
 }
 
 
 
 resource "aws_autoscaling_group" "example" {
+  name = "${var.cluster_name}-${aws_launch_configuration.example.name}"
   launch_configuration = "${aws_launch_configuration.example.id}"
   availability_zones = ["${data.aws_availability_zones.all.names}"]
 
@@ -72,6 +64,11 @@ resource "aws_autoscaling_group" "example" {
 
   max_size = "${var.max_size}"
   min_size = "${var.min_size}"
+  min_elb_capacity = "${var.min_size}"
+
+  lifecycle {
+    create_before_destroy = true
+  }
   tag {
     key = "Name"
     propagate_at_launch = true
@@ -85,6 +82,9 @@ resource "aws_autoscaling_group" "example" {
 
 resource "aws_security_group" "elb" {
   name = "${var.cluster_name}-elb"
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_security_group_rule" "allow_http_inbound"{
@@ -125,6 +125,9 @@ resource "aws_elb" "example" {
     target = "HTTP:${var.server_port}/"
     timeout = 3
     unhealthy_threshold = 2
+  }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
