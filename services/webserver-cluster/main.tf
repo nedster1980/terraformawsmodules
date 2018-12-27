@@ -25,18 +25,23 @@ resource "aws_security_group_rule" "allow_tcp_inbound" {
   cidr_blocks = ["0.0.0.0/0"]
 }
 
+//Uses concat to combine two or more lists into a single list
 resource "aws_launch_configuration" "example" {
   image_id = "ami-0f60b09eab2ef8366"
   instance_type = "${var.instance_type}"
   security_groups = ["${aws_security_group.instance.id}"]
-  user_data = "${data.template_file.user_data.rendered}"
+  user_data = "${element(concat(data.template_file.user_data.*.rendered,data.template_file.user_data_new.*.rendered),0)}"
 
   lifecycle {
     create_before_destroy = true
   }
 }
 
+
+//Now using count and interpolation to hack an if/else statement
+//if enable_new_user is false the user-data.sh script will be used
 data "template_file" "user_data" {
+  count = "${1 - var.enable_new_user_data}"
   template = "${file("${path.module}/user-data.sh")}"
 
   vars {
@@ -45,6 +50,16 @@ data "template_file" "user_data" {
     db_port = "${data.terraform_remote_state.db.port}"
   }
 }
+
+//Else if enable_user_data is true the user-data-new.sh script will be used
+data "template_file" "user_data_new" {
+  count = "${var.enable_new_user_data}"
+  template = "${file("${path.module/user-data-new.sh}")}"
+  vars {
+    server_port = "${var.server_port}"
+  }
+}
+
 
 
 resource "aws_autoscaling_group" "example" {
@@ -138,4 +153,24 @@ resource "aws_autoscaling_schedule" "scale_in_at_night" {
   recurrence = "0 17 * * *"
 }
 
+//Demonstrate more complicated if statements using complicate count parameter
+//Extracts the first character from var.instance_typem if it is a t it set count to 1 otherwise it sets it to 0.
+//Alarm will only be created for instance types that actually support CPUCreditBalance metric
+resource "aws_cloudwatch_metric_alarm" "low_cpu_credit_balance" {
+  count = "${format("%.1s", var.instance_type)  == "t" ? 1 : 0}"
+
+  dimensions {
+    AutoScalingGroupName = "${aws_autoscaling_group.example.name}"
+  }
+
+  alarm_name = "${var.cluster_name}-low-cpu-credit-balance"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods = 1
+  metric_name = "CPUCreditBalance"
+  namespace = "AWS/EC2"
+  period = 300
+  threshold = 10
+  unit = "Count"
+  statistic = "Minimum"
+}
 
