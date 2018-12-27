@@ -47,7 +47,7 @@ data "template_file" "user_data" {
     server_port = "${var.server_port}"
     db_address = "${data.terraform_remote_state.db.address}"
     db_port = "${data.terraform_remote_state.db.port}"
-    server_text = "${var}"
+    server_text = "${var.server_text}"
   }
 }
 
